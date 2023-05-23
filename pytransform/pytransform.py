@@ -6,6 +6,13 @@ import scanpy as sc
 import scipy
 
 
+def _get_model_pars(anndata, bins, latent_vars):
+    pass
+    # Implement poisson fitting
+    #input anndata object, already filtered using the step one function
+    # should ideally include latent vars too.
+    # bins is for multicore support, where you bin the count matrix into m cells by (n/bins) genes
+
 
 def _step1(anndata, sample, min_cells, num_genes):
     down_sample = sc.pp.subsample(anndata, n_obs=min(sample, anndata.shape[0]), copy=True)
@@ -21,7 +28,9 @@ def _step1(anndata, sample, min_cells, num_genes):
     gmeans = gmeans[is_overdisp]
     kde= scipy.stats.gaussian_kde(np.asarray(gmeans).flatten())
     probs=kde.pdf(np.asarray(gmeans).flatten())
-    down_sample_filt=down_sample_filt.var[down_sample_filt.var.sample(2000, weights=probs, axis=0).index]
+    down_sample_filt=down_sample_filt[:, down_sample_filt.var.sample(n=num_genes, weights=probs).index]
+    log_gmeans = np.log10(np.expm1(down_sample_filt.X.log1p().mean(0)))
+    return down_sample_filt, log_gmeans
 
 
 
