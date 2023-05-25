@@ -2,7 +2,9 @@
 Function Signature: add_MAD(anndata, vars)
 
 Parameters
+
 anndata: An AnnData object which is a data structure for annotated data that contains observed data (.obs), variables (.var), and unspecific annotations (.uns).
+
 vars: A list of variables present in anndata.obs for which the MAD based filtering will be performed.
 
 The function goes through the list of variables specified in vars and for each variable, it computes the median,subtracts the median from each observation, resulting 
