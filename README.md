@@ -1,3 +1,10 @@
+Our Project
+
+Group 1 aims to improve and automating single cell analysis, including adding additional methods for the qc filtering process as well as normalization aspects. We want to compare our Scanpy implementation additions
+against default filtering options we've learned in lab as well as against Seurat, comparing accuracy and precision, what gets filtered out, and if there's improvement in filtering speed/runtime. 
+
+
+
 --
 Function Signature: add_MAD(anndata, vars)
 
