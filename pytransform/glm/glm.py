@@ -288,12 +288,12 @@ class GLM:
     def dispersion_(self):
         """Return an estimate of the dispersion parameter phi."""
         if self.is_overdispersed:
-            return inf
+            return np.array([inf])
         if not self._is_fit():
             raise ValueError("Dispersion parameter can only be estimated for a"
                              "fit model.")
         if self.family.has_dispersion:
-            return self.deviance_ / (self.n - self.p)
+            return max(self.deviance_ / (self.n - self.p), np.array(1e-7))
         else:
             return np.ones(shape=self.deviance_.shape)
 
