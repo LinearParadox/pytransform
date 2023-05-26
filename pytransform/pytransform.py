@@ -7,22 +7,22 @@ import scipy
 import statsmodels.genmod.families as families
 from statsmodels.genmod.generalized_linear_model import GLM
 from statsmodels.tools.tools import add_constant
-from typing import Optional, Iterable, Tuple, Union, List, Literal, Dict
+import glm
 
 
-def _get_model_pars(anndata, bins, latent):
+def _get_model_pars(anndata, bins, latent,):
     latent = np.log(anndata.X.mean(1))
     latent = add_constant(np.log1p(anndata.X.mean(1)))
-    # np_regress = GLM(endog=down_sample_filt.X[:, 1].toarray(), exog=add_constant(latent), family= families.NegativeBinomial(alpha=1))
     models = [x for x in range(0, 2000)]
     for ind, n in enumerate(anndata.X.T):
         models[ind] = GLM(endog=n.T.toarray(), exog=latent, family=families.NegativeBinomial(alpha=1)).fit()
+    means = anndata.X.mean(0)
+    x_sq = anndata.X.copy()
+    x_sq.data **= 2
+    genes_var = x_sq.mean(0) - np.square(means)
+    predicted_theta = np.square(means)^2/(genes_var-means)
+
     return models
-    #Multicore doesn't seem to be necessary?
-    # Implement poisson fitting
-    #input anndata object, already filtered using the step one function
-    # should ideally include latent vars too.
-    # bins is for multicore support, where you bin the count matrix into m cells by (n/bins) genes
 
 
 def _step1(anndata, sample, min_cells, num_genes):
