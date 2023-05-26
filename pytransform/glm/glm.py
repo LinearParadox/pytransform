@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.stats as sts
 import patsy as pt
-
+from math import inf
 from .utils import (check_types, check_commensurate, check_intercept,
                     check_offset, check_sample_weights, has_converged,
                     default_X_names, default_y_name)
@@ -99,6 +99,7 @@ class GLM:
         self.n = None
         self.p = None
         self.information_matrix_ = None
+        self.is_overdispersed=False
 
     def fit(self, X, y=None, formula=None, *,
             X_names=None,
@@ -286,6 +287,8 @@ class GLM:
     @property
     def dispersion_(self):
         """Return an estimate of the dispersion parameter phi."""
+        if self.is_overdispersed:
+            return inf
         if not self._is_fit():
             raise ValueError("Dispersion parameter can only be estimated for a"
                              "fit model.")
@@ -378,3 +381,4 @@ class GLM:
                 f"Cannot parse model formula {self.formula} to determine right hand side!")
         X = pt.dmatrix(rhs_formula, X)
         return X
+

@@ -4,24 +4,28 @@ import numpy as np
 from math import inf
 import scanpy as sc
 import scipy
-import statsmodels.genmod.families as families
-from statsmodels.genmod.generalized_linear_model import GLM
-from statsmodels.tools.tools import add_constant
-import glm
+from glm.glm import GLM
+from glm.families import QuasiPoisson
 
 
 def _get_model_pars(anndata, bins, latent,):
-    latent = np.log(anndata.X.mean(1))
-    latent = add_constant(np.log1p(anndata.X.mean(1)))
-    models = [x for x in range(0, 2000)]
-    for ind, n in enumerate(anndata.X.T):
-        models[ind] = GLM(endog=n.T.toarray(), exog=latent, family=families.NegativeBinomial(alpha=1)).fit()
+    latent = np.array(np.log1p(anndata.X.mean(1))).flatten()
+    models = [GLM(family=QuasiPoisson()) for _ in range(0, anndata.shape[1])]
+    for n in range(0, anndata.shape[1]):
+        models[n].fit(pd.DataFrame({
+            "y": anndata.X[:, n].toarray().flatten(),
+            "log_umi": latent
+        }), formula="y~log_umi")
     means = anndata.X.mean(0)
     x_sq = anndata.X.copy()
     x_sq.data **= 2
     genes_var = x_sq.mean(0) - np.square(means)
-    predicted_theta = np.square(means)^2/(genes_var-means)
-
+    predicted_theta = np.square(means)/(genes_var-means)
+    actual_theta = np.array([x.dispersion_ for x in models])
+    diff_theta = np.array(predicted_theta/actual_theta)
+    for n in range(0, len(diff_theta)):
+        if diff_theta[n] < 1e-3:
+            models[n].is_overdispersed = True
     return models
 
 
