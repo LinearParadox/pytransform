@@ -37,3 +37,13 @@ Execution Steps
 3.Define the variables you want to use for MAD based filtering:
 4.Run the add_MAD function:
 5. The modified adata object will now contain new columns in its .obs attribute with the prefix 'MAD_', representing the deviation of each observation from the median for the respective variable.
+
+---------
+
+Files
+
+filter_cells.py - Contains add_MAD, used for adding filtering obs to a given anndata instance for usage in filtering
+
+filter_cells_checks.py - Contains test information for add_MAD, and an example about how it could be used for filtering.
+
+pytransform.py - Contains (currently unfinished) \_step1, used to filter and remove genes based on dispersal ratio, and \_get_model_pars, which fits the anndata to a quasi-Poisson model for distribution.
