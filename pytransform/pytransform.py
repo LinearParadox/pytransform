@@ -11,14 +11,15 @@ from glm.families import QuasiPoisson
 
 
 def _regularize(anndata, model_pars):
-    pass
+    anndata.var["Poisson"] = np.where(anndata.var["overdisp_fact"] <= 0 or anndata.var["amean"] < 1e-3, True, False)
+
 
     
 
 
 
 
-def _get_model_pars(anndata, latent,):
+def _get_model_pars(anndata):
     latent = np.array(np.log1p(anndata.X.mean(1))).flatten()
     models = [GLM(family=QuasiPoisson()) for _ in range(0, anndata.shape[1])]
     for n in range(0, anndata.shape[1]):
@@ -29,20 +30,22 @@ def _get_model_pars(anndata, latent,):
     genes_var = x_sq.mean(0) - np.square(means)
     predicted_theta = np.square(means)/(genes_var-means)
     actual_theta = np.array([x.dispersion_ for x in models])
-    diff_theta = np.array(predicted_theta/actual_theta)
+    diff_theta = np.array(predicted_theta/actual_theta).flatten()
     for n in range(0, len(diff_theta)):
         if diff_theta[n] < 1e-3:
             models[n].is_overdispersed = True
-    anndata.vars["step1_models"] = models
+    anndata.var["step1_models"] = models
     return anndata
 
 
-def _step1(anndata, min_cells, num_genes, num_cells):
+def _step1(anndata, min_cells,  num_cells, num_genes=inf):
     sc.pp.filter_genes(anndata, min_cells=min_cells)
     down_sample = sc.pp.subsample(anndata, n_obs=min(num_cells, anndata.shape[0]), copy=True)
+    sc.pp.filter_genes(down_sample, min_cells=1)
     for n in [anndata, down_sample]:
+        print(n.shape)
         n.var["amean"] = np.asarray(n.X.mean(0)).flatten()
-        n.var["gmean"] = np.asarray(np.expm1(down_sample.X.log1p().mean(0))).flatten()
+        n.var["gmean"] = np.asarray(np.expm1(n.X.log1p().mean(0))).flatten()
         n.var["log_gmeans"] = np.asarray(np.log10(np.expm1(n.X.log1p().mean(0)))).flatten()
         x_sq = n.X.copy()
         x_sq.data **= 2
@@ -62,11 +65,9 @@ def _step1(anndata, min_cells, num_genes, num_cells):
 def pytransform(anndata, min_cells=5, num_genes=inf, num_cells=5000, verbose=False ):
     if verbose:
         logging.basicConfig(level=logging.INFO)
-    else:
-
     pass
     # #Initial filtering and sampling
-    sampling_filtering = _step1(anndata, min_cells, min(num_genes, anndata.n_vars), num_cells)
+    #sampling_filtering = _step1(anndata, min_cells, min(num_genes, anndata.n_vars), num_cells)
     # #Fit model parameters
     # model_pars = _get_model_pars(sampling_filtering[0], bins=1)
     # #Normalize the anndata object
