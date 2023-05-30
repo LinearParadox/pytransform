@@ -8,10 +8,48 @@ import scanpy as sc
 import scipy
 from glm.glm import GLM
 from glm.families import QuasiPoisson
+from KDEpy import FFTKDE
+
+_EPS = np.finfo(float).eps
+
+def _outliers(y, x, threshold):
+    kde = FFTKDE(kernel="gaussian", bw="ISJ").fit(x)
+    width = (max(x)-min(x))*kde.bw / 2
+    eps = _EPS * 10
+    breaks1 = np.arange(min(x),max(x)+ width,width)
+    breaks2 = np.arange(min(x) - eps - width/2,max(x)+width,width)
+    scores1 = _robust_scale(y, x, breaks1)
+    scores2= _robust_scale(y, x, breaks2)
+    return np.abs(np.vstack((scores1, scores2))).min(0)>threshold
+
+def _robust_scale(y, x, breaks): ## Possibly change later, implementation confusing
+    bins = np.digitize(x, breaks)
+    unique_bins = np.unique(bins)
+    res = np.zeros(bins.size)
+    for i in range(0, unique_bins.size):
+        items = y[bins==unique_bins[i]]
+        res[bins==unique_bins[i]] = (items-np.median(items))/(scipy.stats.median_abs_deviation(items)+_EPS)
+    return res
+
 
 
 def _regularize(anndata, model_pars):
-    anndata.var["Poisson"] = np.where(anndata.var["overdisp_fact"] <= 0 or anndata.var["amean"] < 1e-3, True, False)
+    anndata.var["Poisson"] = np.where((anndata.var["amean"] < 1e-3), True, False)
+    model_pars.var["Poisson"] = np.where((model_pars.var["overdisp_fact"] <= 0)
+                                         | (model_pars.var["theta"] == inf), True, False)
+    poisson = pd.concat([anndata.var["Poisson"], model_pars.var["Poisson"]], axis=0, join="outer")
+    poisson = poisson[~poisson.index.duplicated(keep='first')]
+    anndata.var["Poisson"] = poisson
+    model_pars.var["dispersion_par"] = np.log10(1+(10**model_pars.var["log_gmeans"]/model_pars.var["theta"]))
+    log_gmeans = model_pars.var["log_gmeans"].to_numpy()
+    dispersion_outliers = _outliers(model_pars.var["dispersion_par"].to_numpy(), log_gmeans, 10)
+    intercept_outliers = _outliers(model_pars.var["intercept"].to_numpy(), log_gmeans, 10)
+    coefficient_outliers = _outliers(model_pars.var["coef"].to_numpy(), log_gmeans, 10)
+    all_outliers =dispersion_outliers | coefficient_outliers | intercept_outliers \
+                  | np.invert((model_pars.var["theta"] == inf).to_numpy())
+    model_pars.var["outliers"] = all_outliers
+    model_pars = model_pars[:, model_pars.var["outliers"] == False]
+
 
 
     
@@ -34,7 +72,13 @@ def _get_model_pars(anndata):
     for n in range(0, len(diff_theta)):
         if diff_theta[n] < 1e-3:
             models[n].is_overdispersed = True
+    theta = np.array([x.dispersion_ for x in models])
+    coefficient = np.array([x.coef_[1] for x in models])
+    intercept = np.array([x.coef_[0] for x in models])
     anndata.var["step1_models"] = models
+    anndata.var["coef"] = coefficient
+    anndata.var["intercept"] = intercept
+    anndata.var["theta"] = theta
     return anndata
 
 

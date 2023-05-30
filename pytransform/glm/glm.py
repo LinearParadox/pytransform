@@ -100,6 +100,7 @@ class GLM:
         self.p = None
         self.information_matrix_ = None
         self.is_overdispersed=False
+        self.init_start = None
 
     def fit(self, X, y=None, formula=None, *,
             X_names=None,
@@ -195,6 +196,7 @@ class GLM:
             initial_intercept = np.mean(y)
             warm_start = np.zeros(X.shape[1])
             warm_start[0] = initial_intercept
+            self.init_start = warm_start[0]
         coef = warm_start
         if offset is None:
             offset = np.zeros(X.shape[0])
