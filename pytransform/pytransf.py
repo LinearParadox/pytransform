@@ -31,7 +31,9 @@ def _robust_scale(y, x, breaks): ## Possibly change later, implementation confus
         res[bins==unique_bins[i]] = (items-np.median(items))/(scipy.stats.median_abs_deviation(items)+_EPS)
     return res
 
-
+def _pearson_residual(y, mu, theta, min_var = -inf):
+    model_var = mu + (mu**2 / theta)
+    return ( (y - mu) / (np.sqrt(model_var)))
 
 def _regularize(anndata, model_pars, bw_adjust=3):
     anndata.var["Poisson"] = np.where((anndata.var["amean"] < 1e-3), True, False)
