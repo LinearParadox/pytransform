@@ -35,6 +35,13 @@ def _pearson_residual(y, mu, theta, min_var = -inf):
     model_var = mu + (mu**2 / theta)
     return ( (y - mu) / (np.sqrt(model_var)))
 
+def _sq_deviance_residual(y, mu, theta, wt=1):
+    return 2 * wt * (y * np.log(np.maximum(1, y)/mu) - (y + theta) * np.log((y + theta)/(mu + theta)))
+
+def _deviance_residual(y, mu, theta, wt=1):
+    r = 2 * wt * (y * np.log(np.maximum(1, y)/mu) - (y + theta) * np.log((y + theta)/(mu + theta)))
+    return (np.sqrt(r) * np.sign(y - mu))
+
 def _regularize(anndata, model_pars, bw_adjust=3):
     anndata.var["Poisson"] = np.where((anndata.var["amean"] < 1e-3), True, False)
     model_pars.var["Poisson"] = np.where((model_pars.var["overdisp_fact"] <= 0)
