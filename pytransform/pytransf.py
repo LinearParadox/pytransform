@@ -67,7 +67,7 @@ def _regularize(anndata, model_pars, bw_adjust=3):
     fit_mtx = pd.DataFrame(index =anndata.var.index, data=x_points, columns=["x_points"])
     for n in ["dispersion_par", "intercept", "coef"]:
         ks = KernelReg(overdispersed_models.var[n].to_numpy(), overdispersed_models.var["log_gmeans"].to_numpy(),var_type="c", bw=[bw])
-        fit_mtx[n] = ks.fit(fit_mtx["x_points"])[0]
+        fit_mtx.loc[n] = ks.fit(fit_mtx["x_points"])[0]
     fit_mtx["theta"] = (10**anndata.var["log_gmeans"])/(10**fit_mtx["dispersion_par"].to_numpy()-1)
     sum_mean = anndata.X.mean(1).sum()
     for n in anndata[:, anndata.var["Poisson"]].var_names:
@@ -84,7 +84,12 @@ def _regularize(anndata, model_pars, bw_adjust=3):
 def _get_residuals(anndata, model_pars):
     median = np.apply_along_axis(lambda v: np.median(v[np.nonzero(v)]), 0, anndata.X.toarray())
     min_var = (median/5)**2
-    ##TODO: Finish calculating residuals
+    latent = np.array(np.log1p(anndata.X.mean(1))).flatten()
+    regressor_data = np.vstack((np.ones(latent.shape[0]), latent)).T
+    params = model_pars[["intercept", "coef"]]
+    y = np.exp(params @ np.vstack((np.ones(latent.shape[0]), latent)))
+
+
 
     
 
