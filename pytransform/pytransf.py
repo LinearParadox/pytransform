@@ -1,5 +1,5 @@
 import logging
-
+from statsmodels.nonparametric.kernel_regression import KernelReg
 from anndata import AnnData
 import pandas as pd
 import numpy as np
@@ -37,25 +37,38 @@ def _regularize(anndata, model_pars, bw_adjust=3):
     anndata.var["Poisson"] = np.where((anndata.var["amean"] < 1e-3), True, False)
     model_pars.var["Poisson"] = np.where((model_pars.var["overdisp_fact"] <= 0)
                                          | (model_pars.var["theta"] == inf), True, False)
-    poisson = pd.concat([anndata.var["Poisson"], model_pars.var["Poisson"]], axis=0, join="outer")
+    poisson = pd.concat([anndata.var["Poisson"], model_pars.var["Poisson"]], axis=0, join="inner")
     poisson = poisson[~poisson.index.duplicated(keep='first')]
     anndata.var["Poisson"] = poisson
-    model_pars.var["dispersion_par"] = np.log10(1+(10**model_pars.var["log_gmeans"]/model_pars.var["theta"]))
+    model_pars.var["dispersion_par"] = np.log10(1+10**model_pars.var["log_gmeans"]/(model_pars.var["theta"]))
     log_gmeans = model_pars.var["log_gmeans"].to_numpy()
-    dispersion_outliers = _outliers(model_pars.var["dispersion_par"].to_numpy(), log_gmeans, 10)
-    intercept_outliers = _outliers(model_pars.var["intercept"].to_numpy(), log_gmeans, 10)
-    coefficient_outliers = _outliers(model_pars.var["coef"].to_numpy(), log_gmeans, 10)
+    dispersion_outliers = pytransf._outliers(model_pars.var["dispersion_par"].to_numpy(), log_gmeans, 10)
+    intercept_outliers = pytransf._outliers(model_pars.var["intercept"].to_numpy(), log_gmeans, 10)
+    coefficient_outliers = pytransf._outliers(model_pars.var["coef"].to_numpy(), log_gmeans, 10)
     all_outliers =dispersion_outliers | coefficient_outliers | intercept_outliers \
-                  | np.invert((model_pars.var["theta"] == inf).to_numpy())
+                  | (model_pars.var["theta"] == inf).to_numpy()
     model_pars.var["outliers"] = all_outliers
     model_pars = model_pars[:, model_pars.var["outliers"] == False]
-    overdispersed_models = model_pars[model_pars.var["Poisson"] == False]
-    kde = FFTKDE(kernel="gaussian", bw="ISJ").fit(overdispersed_models.var["log_gmean"])
+    overdispersed_models = model_pars[:, model_pars.var["Poisson"] == False]
+    kde = FFTKDE(kernel="gaussian", bw="ISJ").fit(overdispersed_models.var["log_gmeans"].to_numpy())
     bw = kde.bw*bw_adjust
     x_points = np.maximum(anndata.var["log_gmeans"].to_numpy(), min(overdispersed_models.var["log_gmeans"]))
     x_points = np.minimum(x_points, max(overdispersed_models.var["log_gmeans"]))
     o = np.sort(x_points)
-    fit_mtx = pd.DataFrame(data=x_points, columns=["x_points"])
+    fit_mtx = pd.DataFrame(index =anndata.var.index, data=x_points, columns=["x_points"])
+    for n in ["dispersion_par", "intercept", "coef"]:
+        ks = KernelReg(overdispersed_models.var[n].to_numpy(), overdispersed_models.var["log_gmeans"].to_numpy(),var_type="c", bw=[bw])
+        fit_mtx[n] = ks.fit(fit_mtx["x_points"])[0]
+    fit_mtx["theta"] = (10**anndata.var["log_gmeans"])/(10**x["dispersion_par"].to_numpy()-1)
+    sum_mean = anndata.X.mean(1).sum()
+    for n in anndata[:, anndata.var["Poisson"]].var_names:
+        fit_mtx.at[n, "dispersion_par"] = 0
+        fit_mtx.at[n, "theta"] = inf
+        fit_mtx.at[n, "coef"] = np.log(10)
+        fit_mtx.at[n, "intercept"] = anndata.var.loc[n, "amean"] - sum_mean
+
+    return fit_mtx
+
 
 
 
