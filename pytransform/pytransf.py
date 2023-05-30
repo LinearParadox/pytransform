@@ -33,7 +33,7 @@ def _robust_scale(y, x, breaks): ## Possibly change later, implementation confus
 
 
 
-def _regularize(anndata, model_pars):
+def _regularize(anndata, model_pars, bw_adjust=3):
     anndata.var["Poisson"] = np.where((anndata.var["amean"] < 1e-3), True, False)
     model_pars.var["Poisson"] = np.where((model_pars.var["overdisp_fact"] <= 0)
                                          | (model_pars.var["theta"] == inf), True, False)
@@ -49,6 +49,15 @@ def _regularize(anndata, model_pars):
                   | np.invert((model_pars.var["theta"] == inf).to_numpy())
     model_pars.var["outliers"] = all_outliers
     model_pars = model_pars[:, model_pars.var["outliers"] == False]
+    overdispersed_models = model_pars[model_pars.var["Poisson"] == False]
+    kde = FFTKDE(kernel="gaussian", bw="ISJ").fit(overdispersed_models.var["log_gmean"])
+    bw = kde.bw*bw_adjust
+    x_points = np.maximum(anndata.var["log_gmeans"].to_numpy(), min(overdispersed_models.var["log_gmeans"]))
+    x_points = np.minimum(x_points, max(overdispersed_models.var["log_gmeans"]))
+    o = np.sort(x_points)
+    fit_mtx = pd.DataFrame(data=x_points, columns=["x_points"])
+
+
 
 
 
