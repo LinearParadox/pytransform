@@ -42,9 +42,9 @@ def _regularize(anndata, model_pars, bw_adjust=3):
     anndata.var["Poisson"] = poisson
     model_pars.var["dispersion_par"] = np.log10(1+10**model_pars.var["log_gmeans"]/(model_pars.var["theta"]))
     log_gmeans = model_pars.var["log_gmeans"].to_numpy()
-    dispersion_outliers = pytransf._outliers(model_pars.var["dispersion_par"].to_numpy(), log_gmeans, 10)
-    intercept_outliers = pytransf._outliers(model_pars.var["intercept"].to_numpy(), log_gmeans, 10)
-    coefficient_outliers = pytransf._outliers(model_pars.var["coef"].to_numpy(), log_gmeans, 10)
+    dispersion_outliers = _outliers(model_pars.var["dispersion_par"].to_numpy(), log_gmeans, 10)
+    intercept_outliers = _outliers(model_pars.var["intercept"].to_numpy(), log_gmeans, 10)
+    coefficient_outliers = _outliers(model_pars.var["coef"].to_numpy(), log_gmeans, 10)
     all_outliers =dispersion_outliers | coefficient_outliers | intercept_outliers \
                   | (model_pars.var["theta"] == inf).to_numpy()
     model_pars.var["outliers"] = all_outliers
@@ -59,7 +59,7 @@ def _regularize(anndata, model_pars, bw_adjust=3):
     for n in ["dispersion_par", "intercept", "coef"]:
         ks = KernelReg(overdispersed_models.var[n].to_numpy(), overdispersed_models.var["log_gmeans"].to_numpy(),var_type="c", bw=[bw])
         fit_mtx[n] = ks.fit(fit_mtx["x_points"])[0]
-    fit_mtx["theta"] = (10**anndata.var["log_gmeans"])/(10**x["dispersion_par"].to_numpy()-1)
+    fit_mtx["theta"] = (10**anndata.var["log_gmeans"])/(10**fit_mtx["dispersion_par"].to_numpy()-1)
     sum_mean = anndata.X.mean(1).sum()
     for n in anndata[:, anndata.var["Poisson"]].var_names:
         fit_mtx.at[n, "dispersion_par"] = 0
@@ -72,7 +72,10 @@ def _regularize(anndata, model_pars, bw_adjust=3):
 
 
 
-
+def _get_residuals(anndata, model_pars):
+    median = np.apply_along_axis(lambda v: np.median(v[np.nonzero(v)]), 0, anndata.X.toarray())
+    min_var = (median/5)**2
+    ##TODO: Finish calculating residuals
 
     
 
