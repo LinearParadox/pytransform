@@ -13,6 +13,7 @@ pip install git+https://github.com/LinearParadox/pytransform.git
   
 ## Pytransform  
 
+from pytransform import pytransform
 
 useage: pytransform(anndata, min_cells=5, num_genes=2000, num_cells=5000, workers=os.cpu_count()-1, inplace=True,
                 verbose=False)  
