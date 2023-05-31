@@ -29,7 +29,8 @@ verbose -- Default false. Currently does nothing, in the future will print infor
   
 
 
-### Function Signature: add_MAD(anndata, vars)
+### Function Signature: add_MAD(anndata, vars)  
+
 
 Parameters
 
