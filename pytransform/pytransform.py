@@ -163,7 +163,6 @@ def _step1(anndata, min_cells,  num_cells, num_genes=inf):
     down_sample = sc.pp.subsample(anndata, n_obs=min(num_cells, anndata.shape[0]), copy=True)
     sc.pp.filter_genes(down_sample, min_cells=1)
     for n in [anndata, down_sample]:
-        print(n.shape)
         n.var["amean"] = np.asarray(n.X.mean(0)).flatten()
         n.var["gmean"] = np.asarray(np.expm1(n.X.log1p().mean(0))).flatten()
         n.var["log_gmeans"] = np.asarray(np.log10(np.expm1(n.X.log1p().mean(0)))).flatten()
