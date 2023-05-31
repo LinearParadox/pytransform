@@ -103,7 +103,7 @@ def _regularize(anndata, model_pars, bw_adjust=3):
     for n in anndata[:, anndata.var["Poisson"]].var_names:
         fit_mtx.at[n, "dispersion_par"] = 0
         fit_mtx.at[n, "theta"] = inf
-        fit_mtx.at[n, "coef"] = np.log(10)
+        fit_mtx.at[n, "coef"] = 1
         fit_mtx.at[n, "intercept"] = anndata.var.loc[n, "amean"] - sum_mean
 
     return fit_mtx
@@ -121,6 +121,7 @@ def _get_residuals(anndata, model_pars):
     x,y = X.nonzero()
     mu = np.exp(params.values[:,0][y]+params.values[:,1][y]*latent[x])
     var = mu + (mu**2/model_pars["theta"].values.flatten()[y])
+    var[var.data<min_var] = min_var
     X.data[:]=d-(mu/var**0.5)
     X.data[X.data<0]=0
     X.eliminate_zeros()
