@@ -13,15 +13,18 @@ pip install git+https://github.com/LinearParadox/pytransform.git
   
 ## Pytransform  
 
+from pytransform import pytransform
+
 useage: pytransform(anndata, min_cells=5, num_genes=2000, num_cells=5000, workers=os.cpu_count()-1, inplace=True,
-                verbose=False )  
+                verbose=False)  
 
 anndata -- The anndata object to apply pearson residuals to  
 min_cells -- minimum number of cells a gene must be expressed in to be retained  
 num_genes -- number of genes to use in the initial fitting step  
 num_cells -- number of cells to use in the initial fitting step  
 workers -- number of cpu cores to use  
-inplace -- default is true. Whether to return a new anndata object or to modify the provided object.  **Save the counts  
+inplace -- default is true. Whether to return a new anndata object or to modify the provided object.    
+**Save the counts  
 in adata.raw, this will overwrite them**  
 verbose -- Default false. Currently does nothing, in the future will print information if True.
 ---------------------------------------------------------------------------------------------------------  
@@ -29,7 +32,8 @@ verbose -- Default false. Currently does nothing, in the future will print infor
   
 
 
-### Function Signature: add_MAD(anndata, vars)
+### Function Signature: add_MAD(anndata, vars)  
+
 
 Parameters
 
