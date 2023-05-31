@@ -9,8 +9,29 @@ import scipy
 from glm.glm import GLM
 from glm.families import QuasiPoisson
 from KDEpy import FFTKDE
+import multiprocessing
 
 _EPS = np.finfo(float).eps
+
+
+def _calc_model(anndata, latent):
+    models = [GLM(family=QuasiPoisson()) for _ in range(0, anndata.shape[1])]
+    for n in range(0, anndata.shape[1]):
+        models[n].fit(pd.DataFrame(dict(y=anndata.X[:, n].toarray().flatten(), log_umi=latent.flatten())), formula="y~log_umi")
+    means = anndata.X.mean(0)
+    x_sq = anndata.X.copy()
+    x_sq.data **= 2
+    genes_var = x_sq.mean(0) - np.square(means)
+    predicted_theta = np.square(means)/(genes_var-means)
+    actual_theta = np.array([x.dispersion_ for x in models])
+    diff_theta = np.array(predicted_theta/actual_theta).flatten()
+    for n in range(0, len(diff_theta)):
+        if diff_theta[n] < 1e-3:
+            models[n].is_overdispersed = True
+    theta = [float(x.dispersion_) for x in models]
+    coefficient = [float(x.coef_[1]) for x in models]
+    intercept = [float(x.coef_[0]) for x in models]
+    return theta, coefficient, intercept
 
 def _outliers(y, x, threshold):
     kde = FFTKDE(kernel="gaussian", bw="ISJ").fit(x)
@@ -67,7 +88,7 @@ def _regularize(anndata, model_pars, bw_adjust=3):
     fit_mtx = pd.DataFrame(index =anndata.var.index, data=x_points, columns=["x_points"])
     for n in ["dispersion_par", "intercept", "coef"]:
         ks = KernelReg(overdispersed_models.var[n].to_numpy(), overdispersed_models.var["log_gmeans"].to_numpy(),var_type="c", bw=[bw])
-        fit_mtx.loc[n] = ks.fit(fit_mtx["x_points"])[0]
+        fit_mtx[n] = ks.fit(o)[0]
     fit_mtx["theta"] = (10**anndata.var["log_gmeans"])/(10**fit_mtx["dispersion_par"].to_numpy()-1)
     sum_mean = anndata.X.mean(1).sum()
     for n in anndata[:, anndata.var["Poisson"]].var_names:
@@ -87,7 +108,8 @@ def _get_residuals(anndata, model_pars):
     latent = np.array(np.log1p(anndata.X.mean(1))).flatten()
     regressor_data = np.vstack((np.ones(latent.shape[0]), latent)).T
     params = model_pars[["intercept", "coef"]]
-    y = np.exp(params @ np.vstack((np.ones(latent.shape[0]), latent)))
+    mu = pd.DataFrame(data=np.exp(params.to_numpy() @ np.vstack((np.ones(latent.shape[0]), latent))), index=params.index).T
+
 
 
 
@@ -96,28 +118,29 @@ def _get_residuals(anndata, model_pars):
 
 
 
-def _get_model_pars(anndata):
-    latent = np.array(np.log1p(anndata.X.mean(1))).flatten()
+def _get_model_pars(anndata, num_workers):
+    latent = np.array(np.log1p(anndata.X.sum(1))).flatten()
     models = [GLM(family=QuasiPoisson()) for _ in range(0, anndata.shape[1])]
-    for n in range(0, anndata.shape[1]):
-        models[n].fit(pd.DataFrame(dict(y=anndata.X[:, n].toarray().flatten(), log_umi=latent)), formula="y~log_umi")
-    means = anndata.X.mean(0)
-    x_sq = anndata.X.copy()
-    x_sq.data **= 2
-    genes_var = x_sq.mean(0) - np.square(means)
-    predicted_theta = np.square(means)/(genes_var-means)
-    actual_theta = np.array([x.dispersion_ for x in models])
-    diff_theta = np.array(predicted_theta/actual_theta).flatten()
-    for n in range(0, len(diff_theta)):
-        if diff_theta[n] < 1e-3:
-            models[n].is_overdispersed = True
-    theta = np.array([x.dispersion_ for x in models])
-    coefficient = np.array([x.coef_[1] for x in models])
-    intercept = np.array([x.coef_[0] for x in models])
-    anndata.var["step1_models"] = models
+    split = np.array_split(anndata.X.toarray(), num_workers, axis=1)
+    pars_list = []
+    z = 0
+    for n in split:
+        pars_list.append((anndata[:, z:z + n.shape[1]], latent))
+    with multiprocessing.Pool(num_workers) as p:
+        result = p.starmap(_calc_model, pars_list)
+    models = []
+    coefficient = []
+    intercept = []
+    theta = []
+    #return theta, coefficient, intercept
+    for n in result:
+        theta += n[0]
+        coefficient += n[1]
+        intercept += n[2]
     anndata.var["coef"] = coefficient
     anndata.var["intercept"] = intercept
     anndata.var["theta"] = theta
+
     return anndata
 
 
