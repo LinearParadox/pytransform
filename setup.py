@@ -15,7 +15,8 @@ setup(
         'scanpy>=1.7.2',
         'anndata>=0.7.6',
         'pandas>=1.2.3',
-        'statsmodels>=0.12.0'
+        'statsmodels>=0.12.0',
+        'KDEpy>=1.1.3'
     ]
 )
 

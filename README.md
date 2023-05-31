@@ -1,3 +1,34 @@
+Pytransform is a python port of SCTransform, a variance stabilization method for single cell RNA sequencing data.  
+Instead of taking the log of the data and scaling it pearson residuals are generated using a generalized linear model.  
+For more information, please see the following:  
+[Normalization and variance stabilization of single-cell RNA-seq data using regularized negative binomial regression](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1874-1)  
+In addition, we have implemented an automated filtering function which scores cells based on absolute deviation from  
+the median.  
+
+#Installation:  
+To install, please use the following:  
+
+pip install git+https://github.com/LinearParadox/pytransform.git
+  
+  
+## Pytransform  
+
+useage: pytransform(anndata, min_cells=5, num_genes=2000, num_cells=5000, workers=os.cpu_count()-1, inplace=True,
+                verbose=False )  
+
+anndata -- The anndata object to apply pearson residuals to  
+min_cells -- minimum number of cells a gene must be expressed in to be retained  
+num_genes -- number of genes to use in the initial fitting step  
+num_cells -- number of cells to use in the initial fitting step  
+workers -- number of cpu cores to use  
+inplace -- default is true. Whether to return a new anndata object or to modify the provided object.  **Save the counts  
+in adata.raw, this will overwrite them**  
+verbose -- Default false. Currently does nothing, in the future will print information if True.
+---------------------------------------------------------------------------------------------------------  
+  
+  
+
+
 ### Function Signature: add_MAD(anndata, vars)
 
 Parameters
@@ -31,10 +62,3 @@ Execution Steps
 6. The modified adata object will now contain new columns in its .obs attribute with the prefix 'MAD_', representing the deviation of each observation from the median for the respective variable.
 
 ---------
-
-Files
-
-filter_cells.py - Contains add_MAD, used for adding filtering obs to a given anndata instance for usage in filtering
-
-
-pytransform.py - Currently unfinished. Contains a python implementation for some functions from SCTransform, which has been proposed as a more rigerous way to normalize scRNA seq data.

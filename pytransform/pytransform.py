@@ -1,4 +1,7 @@
 import logging
+import os
+import xml.dom
+
 from statsmodels.nonparametric.kernel_regression import KernelReg
 from anndata import AnnData
 import pandas as pd
@@ -17,6 +20,7 @@ _EPS = np.finfo(float).eps
 def _calc_model(anndata, latent):
     models = [GLM(family=QuasiPoisson()) for _ in range(0, anndata.shape[1])]
     for n in range(0, anndata.shape[1]):
+        logging.critical(n)
         models[n].fit(pd.DataFrame(dict(y=anndata.X[:, n].toarray().flatten(), log_umi=latent.flatten())), formula="y~log_umi")
     means = anndata.X.mean(0)
     x_sq = anndata.X.copy()
@@ -78,7 +82,12 @@ def _regularize(anndata, model_pars, bw_adjust=3):
     all_outliers =dispersion_outliers | coefficient_outliers | intercept_outliers \
                   | (model_pars.var["theta"] == inf).to_numpy()
     model_pars.var["outliers"] = all_outliers
+    poisson = pd.concat([anndata.var["Poisson"], model_pars.var["outliers"]], axis=0, join="inner")
+    poisson = poisson[~poisson.index.duplicated(keep='first')]
+    anndata.var["Poisson"] = poisson
     model_pars = model_pars[:, model_pars.var["outliers"] == False]
+    anndata = anndata[:, anndata.var["Poisson"]==False]
+
     overdispersed_models = model_pars[:, model_pars.var["Poisson"] == False]
     kde = FFTKDE(kernel="gaussian", bw="ISJ").fit(overdispersed_models.var["log_gmeans"].to_numpy())
     bw = kde.bw*bw_adjust
@@ -105,11 +114,19 @@ def _regularize(anndata, model_pars, bw_adjust=3):
 def _get_residuals(anndata, model_pars):
     median = np.apply_along_axis(lambda v: np.median(v[np.nonzero(v)]), 0, anndata.X.toarray())
     min_var = (median/5)**2
-    latent = np.array(np.log1p(anndata.X.mean(1))).flatten()
-    regressor_data = np.vstack((np.ones(latent.shape[0]), latent)).T
+    latent = np.array(np.log1p(anndata.X.sum(1))).flatten()
+    X = anndata.X.copy()
     params = model_pars[["intercept", "coef"]]
-    mu = pd.DataFrame(data=np.exp(params.to_numpy() @ np.vstack((np.ones(latent.shape[0]), latent))), index=params.index).T
-
+    d = X.data.copy()
+    x,y = X.nonzero()
+    mu = np.exp(params.values[:,0][y]+params.values[:,1][y]*latent[x])
+    var = mu + (mu**2/model_pars["theta"].values.flatten()[y])
+    X.data[:]=d-(mu/var**0.5)
+    X.data[X.data<0]=0
+    X.eliminate_zeros()
+    clip = np.sqrt(X.shape[0]/30)
+    X.data[X.data>clip]=clip
+    return X
 
 
 
@@ -119,8 +136,7 @@ def _get_residuals(anndata, model_pars):
 
 
 def _get_model_pars(anndata, num_workers):
-    latent = np.array(np.log1p(anndata.X.sum(1))).flatten()
-    models = [GLM(family=QuasiPoisson()) for _ in range(0, anndata.shape[1])]
+    latent = np.array(np.log10(anndata.X.sum(1))).flatten()
     split = np.array_split(anndata.X.toarray(), num_workers, axis=1)
     pars_list = []
     z = 0
@@ -128,11 +144,9 @@ def _get_model_pars(anndata, num_workers):
         pars_list.append((anndata[:, z:z + n.shape[1]], latent))
     with multiprocessing.Pool(num_workers) as p:
         result = p.starmap(_calc_model, pars_list)
-    models = []
     coefficient = []
     intercept = []
     theta = []
-    #return theta, coefficient, intercept
     for n in result:
         theta += n[0]
         coefficient += n[1]
@@ -161,24 +175,27 @@ def _step1(anndata, min_cells,  num_cells, num_genes=inf):
     down_sample_filt = down_sample[:, down_sample.var["overdisp_fact"]>0]
     gmeans = np.asarray(down_sample_filt.var["gmean"]).flatten()
     if num_genes < down_sample_filt.n_vars: # If you want to downsample genes
-        logging.info("""Subsampling to {} genes. Note this will limit the number of genes present in the final product.
-                     This is not recommended unless needed to speed up computation.""".format(num_genes))
         kde= scipy.stats.gaussian_kde(np.asarray(gmeans).flatten())
         probs=kde.pdf(np.asarray(gmeans).flatten())
         down_sample_filt=down_sample_filt[:, down_sample_filt.var.sample(n=num_genes, weights=probs).index]
     return down_sample_filt
 
-def pytransform(anndata, min_cells=5, num_genes=inf, num_cells=5000, verbose=False ):
+def pytransform(anndata, min_cells=5, num_genes=2000, num_cells=5000, workers=os.cpu_count()-1, inplace=True,
+                verbose=False ):
     if verbose:
         logging.basicConfig(level=logging.INFO)
-    pass
-    # #Initial filtering and sampling
-    #sampling_filtering = _step1(anndata, min_cells, min(num_genes, anndata.n_vars), num_cells)
-    # #Fit model parameters
-    # model_pars = _get_model_pars(sampling_filtering[0], bins=1)
-    # #Normalize the anndata object
-    # normalized_anndata = normalize_pearson_residuals(sampling_filtering,model_pars)
-    # return normalized_anndata
+    sub_samp = _step1(anndata, min_cells=min_cells, num_genes=num_genes, num_cells=num_cells)
+    models = _get_model_pars(sub_samp, workers)
+    params = _regularize(anndata, models)
+    anndata = anndata[:, anndata.var["Poisson"]==False]
+    residuals = _get_residuals(anndata, params)
+    if inplace:
+        anndata.X = residuals
+    else:
+        return_val = anndata.copy()
+        return_val.X = residuals
+        return return_val
+
 
 
 ###
