@@ -114,7 +114,7 @@ def _regularize(anndata, model_pars, bw_adjust=3):
 def _get_residuals(anndata, model_pars):
     median = np.apply_along_axis(lambda v: np.median(v[np.nonzero(v)]), 0, anndata.X.toarray())
     min_var = (median/5)**2
-    latent = np.array(np.log1p(anndata.X.sum(1))).flatten()
+    latent = np.array(np.log10(anndata.X.sum(1))).flatten()
     X = anndata.X.copy()
     params = model_pars[["intercept", "coef"]]
     d = X.data.copy()
