@@ -121,7 +121,9 @@ def _get_residuals(anndata, model_pars):
     x,y = X.nonzero()
     mu = np.exp(params.values[:,0][y]+params.values[:,1][y]*latent[x])
     var = mu + (mu**2/model_pars["theta"].values.flatten()[y])
-    var[var.data<min_var] = min_var
+    for ind, n in enumerate(var):
+        if n < min_var[y[ind]]:
+            var[ind] = min_var[y[ind]]
     X.data[:]=d-(mu/var**0.5)
     X.data[X.data<0]=0
     X.eliminate_zeros()
