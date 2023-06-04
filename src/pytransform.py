@@ -56,16 +56,6 @@ def _robust_scale(y, x, breaks): ## Possibly change later, implementation confus
         res[bins==unique_bins[i]] = (items-np.median(items))/(scipy.stats.median_abs_deviation(items)+_EPS)
     return res
 
-def _pearson_residual(y, mu, theta, min_var = -inf):
-    model_var = mu + (mu**2 / theta)
-    return ( (y - mu) / (np.sqrt(model_var)))
-
-def _sq_deviance_residual(y, mu, theta, wt=1):
-    return 2 * wt * (y * np.log(np.maximum(1, y)/mu) - (y + theta) * np.log((y + theta)/(mu + theta)))
-
-def _deviance_residual(y, mu, theta, wt=1):
-    r = 2 * wt * (y * np.log(np.maximum(1, y)/mu) - (y + theta) * np.log((y + theta)/(mu + theta)))
-    return (np.sqrt(r) * np.sign(y - mu))
 
 def _regularize(anndata, model_pars, bw_adjust=3):
     anndata.var["Poisson"] = np.where((anndata.var["amean"] < 1e-3), True, False)
@@ -183,7 +173,7 @@ def _step1(anndata, min_cells,  num_cells, num_genes=inf):
     return down_sample_filt
 
 def pytransform(anndata, min_cells=5, num_genes=2000, num_cells=5000, workers=os.cpu_count()-1, inplace=True,
-                verbose=False ):
+                verbose=False, highly_variable=3000):
     if verbose:
         logging.basicConfig(level=logging.INFO)
     sub_samp = _step1(anndata, min_cells=min_cells, num_genes=num_genes, num_cells=num_cells)
@@ -193,44 +183,31 @@ def pytransform(anndata, min_cells=5, num_genes=2000, num_cells=5000, workers=os
     residuals = _get_residuals(anndata, params)
     if inplace:
         anndata.X = residuals
+        if highly_variable > 0:
+            x_sq = anndata.X.copy()
+            x_mean = anndata.X.mean(0)
+            x_sq.data **=2
+            pearson_var = np.asarray(x_sq.mean(0)) - np.asarray(np.square(x_mean))
+            anndata.var["Pearson_variance"] = pearson_var.flatten()
+            variable_indeces = anndata.var["Pearson_variance"].sort_values(ascending=False).iloc[0:highly_variable].index
+            anndata = anndata[:, variable_indeces]
     else:
         return_val = anndata.copy()
         return_val.X = residuals
+        if highly_variable > 0:
+            x_sq = return_val.X.copy()
+            x_mean = return_val.X.mean(0)
+            x_sq.data **= 2
+            pearson_var = np.asarray(x_sq.mean(0)) - np.asarray(np.square(x_mean))
+            return_val.var["Pearson_variance"] = pearson_var.flatten()
+            variable_indeces = return_val.var["Pearson_variance"].sort_values(ascending=False).iloc[0:highly_variable].index
+            return_val = return_val[:, variable_indeces]
         return return_val
 
 
 
-###
-
-# def normalize_pearson_residuals(
-#     adata: AnnData,
-#     model_pars: np.ndarray,
-#     *,
-#     clip: Optional[float] = None,
-#     check_values: bool = True,
-#     layer: Optional[str] = None,
-#     inplace: bool = True,
-#     copy: bool = False,
-# ) -> Optional[Dict[str, np.ndarray]]:
-#     if copy:
-#         if not inplace:
-#             raise ValueError("`copy=True` cannot be used with `inplace=False`.")
-#         adata = adata.copy()
-#
-#
-#     X = _get_obs_rep(adata, layer=layer)
-#     computed_on = layer if layer else 'adata.X'
-#
-#     # Use the provided model parameters (e.g., theta estimates) for each gene
-#     residuals = _pearson_residuals(X, model_pars, clip, check_values, copy=~inplace)
-#     settings_dict = dict(theta=model_pars, clip=clip, computed_on=computed_on)
-#
-#     if inplace:
-#         _set_obs_rep(adata, residuals, layer=layer)
-#         adata.uns['pearson_residuals_normalization'] = settings_dict
-#     else:
-#         results_dict = dict(X=residuals, **settings_dict)
-#
-#     return adata if copy else (results_dict if not inplace else None)
 ##
-
+#x_sq = adata.X.copy()
+#x_mean = adata.X.mean(0)
+#x_sq.data **= 2
+#genes_var = np.asarray(x_sq.mean(0)) - np.asarray(np.square(x_mean))
