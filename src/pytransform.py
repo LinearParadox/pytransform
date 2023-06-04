@@ -191,6 +191,7 @@ def pytransform(anndata, min_cells=5, num_genes=2000, num_cells=5000, workers=os
             anndata.var["Pearson_variance"] = pearson_var.flatten()
             variable_indeces = anndata.var["Pearson_variance"].sort_values(ascending=False).iloc[0:highly_variable].index
             anndata = anndata[:, variable_indeces]
+            anndata.X = scipy.sparse.csr_matrix(anndata.X)
     else:
         return_val = anndata.copy()
         return_val.X = residuals
@@ -202,6 +203,7 @@ def pytransform(anndata, min_cells=5, num_genes=2000, num_cells=5000, workers=os
             return_val.var["Pearson_variance"] = pearson_var.flatten()
             variable_indeces = return_val.var["Pearson_variance"].sort_values(ascending=False).iloc[0:highly_variable].index
             return_val = return_val[:, variable_indeces]
+            return_val.X = scipy.sparse.csr_matrix(return_val.X)
         return return_val
 
 
