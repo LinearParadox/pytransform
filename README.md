@@ -26,7 +26,7 @@ workers - number of cpu cores to use
 inplace - default is true. Whether to return a new anndata object or to modify the provided object.    
 **Save the counts  in adata.raw, this will overwrite them**  
 highly_variable - The amount of highly variable genes to subset by. Default is 3000. To return all genes, set this to zero.  
-**This also overwrites adata.X, so make sure to save a copy to adata.raw**
+**This also overwrites adata.X, so make sure to save a copy to adata.raw**  
 verbose - Default false. Currently does nothing, in the future will print information if True.
 
 ---------------------------------------------------------------------------------------------------------  
