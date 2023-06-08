@@ -1,9 +1,6 @@
 import logging
 import os
-import xml.dom
-
 from statsmodels.nonparametric.kernel_regression import KernelReg
-from anndata import AnnData
 import pandas as pd
 import numpy as np
 from math import inf
@@ -129,6 +126,7 @@ def _regularize(anndata, model_pars, bw_adjust=3):
 
 def _get_residuals(anndata, model_pars):
     """
+
     :param anndata: Anndata object
     :param model_pars: slope, coefficient, overdispersion pars for the anndata
     :return: Pearson residuals for the anndata object
@@ -266,6 +264,3 @@ def pytransform(anndata, min_cells=5, num_genes=2000, num_cells=5000, workers=os
             return_val = return_val[:, variable_indeces]
             return_val.X = scipy.sparse.csr_matrix(return_val.X)
         return return_val
-
-
-
