@@ -29,6 +29,12 @@ highly_variable - The amount of highly variable genes to subset by. Default is 3
 **This also overwrites adata.X, so make sure to save a copy to adata.raw**  
 verbose - Default false. Currently does nothing, in the future will print information if True.
 
+**Note: If you choose to regress out variables such as mitochondrial count, do not regress out total_counts, as is regular in scanpy. This method already corrects for the total count distribution. So, for example if one were to regress out using log transform, one would run:**
+**sc.pp.regress_out(adata, ['total_counts', 'pct_counts_mt'])**
+**For our implementation simply run:**  
+**sc.pp.regress_out(adata, ['pct_counts_mt'])** 
+
+
 ---------------------------------------------------------------------------------------------------------  
   
   
