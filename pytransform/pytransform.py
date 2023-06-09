@@ -6,8 +6,8 @@ import numpy as np
 from math import inf
 import scanpy as sc
 import scipy
-from glm.glm import GLM
-from glm.families import QuasiPoisson
+from .glm.glm import GLM
+from.glm.families import QuasiPoisson
 from KDEpy import FFTKDE
 import multiprocessing
 
