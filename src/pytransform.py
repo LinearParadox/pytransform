@@ -42,7 +42,7 @@ def _calc_model(anndata, latent):
 
 def _outliers(y, x, threshold):
     """
-    Calculates if any of the parameters are outliets
+    Calculates if any of the parameters are outliers
     :param y:  the variable to calculate the outlier against
     :param x: the target to fit against
     :param threshold: the outlier threshold
@@ -59,6 +59,7 @@ def _outliers(y, x, threshold):
 
 def _robust_scale(y, x, breaks): ## Possibly change later, implementation confusing
     """
+    Returns a scale based on the median absolute deviation, done to detect outliers
     :param y: Metric to calculate scale for
     :param x: Metric to scale against
     :param breaks: number of bins
@@ -126,7 +127,7 @@ def _regularize(anndata, model_pars, bw_adjust=3):
 
 def _get_residuals(anndata, model_pars):
     """
-
+    Gets the pearson residuals for each gene in each cell.
     :param anndata: Anndata object
     :param model_pars: slope, coefficient, overdispersion pars for the anndata
     :return: Pearson residuals for the anndata object
@@ -159,7 +160,7 @@ def _get_residuals(anndata, model_pars):
 
 def _get_model_pars(anndata, num_workers):
     """
-
+    Gets the dispersion, slope, and intercept for each gene.
     :param anndata: anndata object
     :param num_workers: number of cores to uses
     :return: anndata with dispersion pars estimated for each gene in the object
@@ -188,6 +189,9 @@ def _get_model_pars(anndata, num_workers):
 
 def _step1(anndata, min_cells,  num_cells, num_genes=2000):
     """
+    Filters the matrix for lowly expressed genes. Performs subsampling of genes and cells. Gene sampling is implemented
+    using Kernel Density Estimation in order to sample genes in such a way that genes that are highly expressed are more
+    likely to be selected.
     :param anndata: anndata object
     :param min_cells: minimum number of cells for a gene to be expressed in to be retained
     :param num_cells: number of cells to use for the initial regression step

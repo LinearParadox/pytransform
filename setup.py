@@ -8,7 +8,9 @@ setup(
     description="Additions to the automation of Single-Cell Analysis: A Python package with additional features for automated quality control in single-cell analysis",
     author="Alexei Martinskovsky, Drew Hulsy, Brandon Nguyen",  
     author_email="alexei.martsinkovskiy@gmail.com, drewhulsy@gmail.com, bhn002@.ucsd.edu",  
-    url="https://github.com/LinearParadox/pytransform",  
+    url="https://github.com/LinearParadox/pytransform",
+    package_dir={"":"src"},
+    py_modules=["pytransform", "filter_cells"],
     install_requires=[
         'numpy>=1.20.0',
         'scipy>=1.6.0',
