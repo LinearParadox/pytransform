@@ -10,6 +10,7 @@ from .glm.glm import GLM
 from.glm.families import QuasiPoisson
 from KDEpy import FFTKDE
 import multiprocessing
+import anndata as ad
 
 _EPS = np.finfo(float).eps
 
@@ -237,6 +238,7 @@ def pytransform(anndata, min_cells=5, num_genes=2000, num_cells=5000, workers=os
     instead.
     :return: An anndata object if inplace=False, else nothing.
     """
+
     if verbose:
         logging.basicConfig(level=logging.INFO)
     sub_samp = _step1(anndata, min_cells=min_cells, num_genes=num_genes, num_cells=num_cells)
