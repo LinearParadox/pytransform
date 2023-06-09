@@ -9,7 +9,6 @@ setup(
     author="Alexei Martinskovsky, Drew Hulsy, Brandon Nguyen",  
     author_email="alexei.martsinkovskiy@gmail.com, drewhulsy@gmail.com, bhn002@.ucsd.edu",  
     url="https://github.com/LinearParadox/pytransform",
-    package_dir={"":"pytransform"},
     packages=["pytransform", "pytransform/glm"],
     install_requires=[
         'numpy>=1.20.0',
